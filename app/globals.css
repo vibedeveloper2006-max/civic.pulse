@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+@theme {
+  --font-family-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-civic-navy: #002855;
+  --color-civic-red: #e41d35;
+  --color-civic-blue: #005596;
+  --color-civic-bg: #f7fafc;
+  --color-civic-surface: #ffffff;
+  --color-civic-border: #c4c6d0;
+  --color-civic-muted: #43474f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  background-color: #f7fafc;
+  color: #181c1e;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f4f6; }
+::-webkit-scrollbar-thumb { background: #c4c6d0; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #747780; }
+
+/* Focus rings */
+*:focus-visible {
+  outline: 2px solid #002855;
+  outline-offset: 2px;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.animate-fade-in { animation: fadeIn 0.35s ease-out; }
+.animate-slide-in { animation: slideIn 0.3s ease-out; }
+.animate-pulse-soft { animation: pulse-soft 2s infinite; }
+
+/* Chat bubbles */
+.bubble-assistant {
+  background: #ffffff;
+  border: 1px solid #c4c6d0;
+  border-radius: 0 12px 12px 12px;
+}
+.bubble-user {
+  background: #002855;
+  color: #ffffff;
+  border-radius: 12px 12px 0 12px;
+}
+
+/* Timeline connector */
+.timeline-connector {
+  position: absolute;
+  left: 19px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #c4c6d0;
+}
