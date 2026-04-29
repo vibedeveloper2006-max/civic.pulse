@@ -1,5 +1,12 @@
 import { Intent } from "./types";
 
+/**
+ * Intent detection logic for voter queries.
+ * Categorizes user messages into specific election-related workflow intents.
+ * 
+ * @param message - The raw user input string
+ * @returns The detected Intent type
+ */
 export function detectIntent(message: string): Intent {
   const lower = message.toLowerCase();
   if (lower.includes("eligib") || lower.includes("qualify") || lower.includes("can i vote")) return "CHECK_ELIGIBILITY";
@@ -9,6 +16,12 @@ export function detectIntent(message: string): Intent {
   return "GENERAL";
 }
 
+/**
+ * Parses the raw AI response containing structured tags into a clean object.
+ * 
+ * @param raw - The tagged string output from Gemini
+ * @returns An object containing the reply text, detected intent, and suggested questions
+ */
 export function parseResponse(raw: string): { reply: string; intent: Intent; suggestions: string[] } {
   const replyMatch = raw.match(/REPLY:\s*([\s\S]*?)(?=INTENT:|$)/);
   const intentMatch = raw.match(/INTENT:\s*(\w+)/);
