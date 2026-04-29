@@ -12,9 +12,12 @@ import {
   CheckCircle2, XCircle, Filter,
 } from "lucide-react";
 
+import { usePolling } from "@/hooks/usePolling";
+
+// Strict typing for Google Maps Global using official types
 declare global {
   interface Window {
-    google: any;
+    google: typeof google;
   }
 }
 
@@ -81,76 +84,76 @@ function PlaceCard({ place, isNearest }: { place: PollingPlace; isNearest: boole
   );
 }
 
+/**
+ * Main Polling page component.
+ * Allows users to search for polling stations and visualize them on a map.
+ */
 export default function PollingPage() {
-  const [places, setPlaces] = useState<PollingPlace[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [location, setLocation] = useState("");
+  const { 
+    places, 
+    setPlaces, 
+    loading, 
+    lastSearchLocation, 
+    fetchPlaces 
+  } = usePolling();
+
   const [searchInput, setSearchInput] = useState("");
   const [openOnly, setOpenOnly] = useState(false);
-  const { completeStep, setCurrentStep } = useUserStore();
 
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
+  const mapInstanceRef = useRef<google.maps.Map | null>(null);
+  const markersRef = useRef<google.maps.Marker[]>([]);
 
   useEffect(() => {
-    if (window.google && window.google.maps && mapRef.current && !mapInstanceRef.current) {
-      mapInstanceRef.current = new window.google.maps.Map(mapRef.current, {
-        center: { lat: 28.6139, lng: 77.2090 }, // New Delhi
+    const google = window.google;
+    if (google?.maps && mapRef.current && !mapInstanceRef.current) {
+      mapInstanceRef.current = new google.maps.Map(mapRef.current, {
+        center: { lat: 28.6139, lng: 77.2090 }, // New Delhi default
         zoom: 12,
         disableDefaultUI: true,
       });
     }
 
-    if (mapInstanceRef.current && window.google) {
+    if (mapInstanceRef.current && google?.maps) {
       // Clear old markers
       markersRef.current.forEach((m) => m.setMap(null));
       markersRef.current = [];
 
       // Add new markers
       places.forEach((p, i) => {
-        if (p.lat && p.lng) {
-          const marker = new window.google.maps.Marker({
+        if (p.lat && p.lng && mapInstanceRef.current) {
+          const marker = new google.maps.Marker({
             position: { lat: p.lat, lng: p.lng },
             map: mapInstanceRef.current,
             title: p.name,
-            icon: i === 0 ? "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" : "http://maps.google.com/mapfiles/ms/icons/red-dot.png"
+            icon: i === 0 
+              ? "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" 
+              : "http://maps.google.com/mapfiles/ms/icons/red-dot.png"
           });
           markersRef.current.push(marker);
         }
       });
 
       // Recenter to the first result
-      if (places.length > 0 && places[0].lat) {
+      if (places.length > 0 && places[0].lat && mapInstanceRef.current) {
         mapInstanceRef.current.panTo({ lat: places[0].lat, lng: places[0].lng });
         mapInstanceRef.current.setZoom(14);
       }
     }
   }, [places]);
 
-  async function fetchPlaces(loc = location, onlyOpen = openOnly) {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ location: loc, openOnly: String(onlyOpen) });
-      const res = await fetch(`/api/polling?${params}`);
-      const data = await res.json();
-      setPlaces(data.places ?? []);
-      completeStep(4);
-      setCurrentStep(5);
-    } catch {
-      // keep previous
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Initial load
+  useEffect(() => { 
+    fetchPlaces("", openOnly); 
+  }, [fetchPlaces, openOnly]);
 
-  useEffect(() => { fetchPlaces(); }, []); // eslint-disable-line
-
-  async function handleSearch(e: React.FormEvent) {
+  /**
+   * Triggers a new search based on current input and filters.
+   */
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLocation(searchInput);
     await fetchPlaces(searchInput, openOnly);
-  }
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
@@ -183,7 +186,7 @@ export default function PollingPage() {
             variant={openOnly ? "primary" : "outline"}
             size="sm"
             className="gap-1"
-            onClick={() => { setOpenOnly(!openOnly); fetchPlaces(location, !openOnly); }}
+            onClick={() => { setOpenOnly(!openOnly); fetchPlaces(searchInput, !openOnly); }}
           >
             <Filter className="w-4 h-4" />
             {openOnly ? "Open Only" : "All Places"}
@@ -192,7 +195,7 @@ export default function PollingPage() {
             variant="outline"
             size="sm"
             className="gap-1"
-            onClick={() => fetchPlaces()}
+            onClick={() => fetchPlaces(searchInput, openOnly)}
             title="Refresh wait times"
             aria-busy={loading}
           >

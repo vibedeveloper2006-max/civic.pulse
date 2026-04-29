@@ -4,6 +4,19 @@ import { AssistantRequest, AssistantResponse, Intent } from "@/lib/types";
 import { detectIntent, parseResponse } from "@/lib/assistant-utils";
 import { logInteraction } from "@/lib/google-logger";
 
+/**
+ * Interface mapping for the Google Gemini discovery API response.
+ */
+interface GoogleModelDiscovery {
+  models?: Array<{
+    name: string;
+    supportedGenerationMethods: string[];
+  }>;
+  error?: {
+    message: string;
+  };
+}
+
 // genAI initialized dynamically inside handler
 const SYSTEM_PROMPT = `You are CivicPulse, an intelligent, friendly, and non-partisan election assistant for Indian voters.
 Your role is to help citizens navigate the voting process step-by-step according to the Election Commission of India (ECI) guidelines.
@@ -28,12 +41,14 @@ SUGGESTIONS: <JSON array of 2-3 short follow-up questions>`;
 
 // Assistant Logic Utils extracted to lib/assistant-utils.ts
 
+/**
+ * POST handler for the CivicPulse AI Assistant.
+ * Routes user queries to Google Gemini, performing dynamic model discovery if the primary model is unavailable.
+ */
 export async function POST(req: NextRequest) {
-  let message = "";
   try {
     const body: AssistantRequest = await req.json();
-    message = body.message;
-    const { history, userState } = body;
+    const { message, history, userState } = body;
 
     if (!message?.trim()) {
       return NextResponse.json({ error: "Message is required" }, { status: 400 });
@@ -41,92 +56,76 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey || apiKey === "your_gemini_api_key_here") {
-      return NextResponse.json({ error: "Please provide a valid GEMINI_API_KEY in your .env file." }, { status: 401 });
+      return NextResponse.json({ 
+        error: "Assistant unavailable: Invalid API Key configuration." 
+      }, { status: 401 });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    
-    // 1. Try the most standard model first
-    const primaryModel = "gemini-1.5-flash";
-    let modelName = primaryModel;
-    let model;
-
-    try {
-      model = genAI.getGenerativeModel(
-        { 
-          model: modelName,
-          safetySettings: [
-            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-          ]
-        }, 
-        { apiVersion: "v1" }
-      );
-      // Quick check if model exists? (SDK doesn't verify on init, only on use)
-    } catch (e) {
-      console.warn("Primary model initialization failed, switching to discovery.");
-    }
-
     const contextualSystem = `${SYSTEM_PROMPT}\n\nCurrent user voter state: ${userState}`;
+    
+    // Map history to Google-compatible parts
     const chatHistory = history.map((h) => ({
       role: h.role === "assistant" ? "model" : "user",
       parts: [{ text: h.content }],
     }));
 
-    const executeChat = async (mName: string) => {
-      const m = genAI.getGenerativeModel({ model: mName }, { apiVersion: "v1" });
-      const chat = m.startChat({
+    /**
+     * Helper to execute a chat message using a specific model name.
+     */
+    const executeChat = async (mName: string): Promise<string> => {
+      const model = genAI.getGenerativeModel({ 
+        model: mName,
+        safetySettings: [
+          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE },
+          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE },
+        ]
+      }, { apiVersion: "v1" });
+      
+      const chat = model.startChat({
         history: [
           { role: "user", parts: [{ text: contextualSystem }] },
           { role: "model", parts: [{ text: "Understood. I am CivicPulse, ready to assist voters." }] },
           ...chatHistory,
         ],
       });
+      
       const result = await chat.sendMessage(message);
       return result.response.text();
     };
 
     let raw = "";
+    const primaryModel = "gemini-1.5-flash";
+
     try {
-      raw = await executeChat(modelName);
-    } catch (err: any) {
-      // 2. Discovery: If primary fails (404), find ANY available text model for this key
-      if (err.message?.includes("404") || err.message?.includes("not found")) {
-        console.warn(`Model ${modelName} not found using GCP key. Attempting dynamic discovery on v1...`);
+      raw = await executeChat(primaryModel);
+    } catch (err) {
+      const errorStr = err instanceof Error ? err.message : String(err);
+      
+      // Fallback Discovery Logic
+      if (errorStr.toLowerCase().includes("404") || errorStr.toLowerCase().includes("not found")) {
+        console.warn(`Primary model ${primaryModel} not found. Running discovery.`);
+        
         try {
-          // Try v1 instead of v1beta for Cloud keys
           const mRes = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`);
-          const mData = await mRes.json();
+          const mData: GoogleModelDiscovery = await mRes.json();
           
-          if (mData.error) {
-            console.error("Discovery API Error:", mData.error);
-            throw new Error(mData.error.message || "GCP API Error");
-          }
+          if (mData.error) throw new Error(mData.error.message);
 
           const availableModels = mData.models
-            ?.filter((m: any) => m.supportedGenerationMethods.includes("generateContent"))
-            .map((m: any) => m.name.replace("models/", "")) || [];
-          
-          console.info("Discovered Text Models for this key (Terminal Check):", availableModels);
+            ?.filter((m) => m.supportedGenerationMethods.includes("generateContent"))
+            .map((m) => m.name.replace("models/", "")) || [];
 
-          if (availableModels.length > 0) {
-            // Try everything in the discovery list until one works
-            for (const bestModel of availableModels) {
-              try {
-                console.info(`Attempting Discovered Model: ${bestModel}`);
-                raw = await executeChat(bestModel);
-                if (raw) break;
-              } catch (e) {
-                console.warn(`Discovered model ${bestModel} also failed, trying next...`);
-              }
+          for (const discoveredModel of availableModels) {
+            try {
+              raw = await executeChat(discoveredModel);
+              if (raw) break;
+            } catch {
+              continue;
             }
-          } else {
-            throw err;
           }
-        } catch (discoveryErr: any) {
-          console.error("Discovery failed:", discoveryErr.message);
+        } catch (discErr) {
+          console.error("Discovery failed critically:", discErr);
           throw err; 
         }
       } else {
@@ -135,21 +134,22 @@ export async function POST(req: NextRequest) {
     }
 
     if (!raw) {
-      throw new Error("Could not get a valid response from any AI model.");
+      return NextResponse.json({ error: "AI failed to generate a response." }, { status: 502 });
     }
 
     const parsed = parseResponse(raw);
     
-    // Background log to Google Cloud Analytics (BigQuery)
+    // Background analytics logging
     logInteraction({
       message,
       intent: parsed.intent,
       timestamp: new Date().toISOString()
-    });
+    }).catch(e => console.error("Logging error:", e));
 
     return NextResponse.json<AssistantResponse>(parsed);
-  } catch (error: any) {
-    console.error("Assistant API Final Error:", error?.message || error);
-    return NextResponse.json({ error: error?.message || "AI is currently unavailable" }, { status: 500 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Internal Server Error";
+    console.error("[Assistant API]", message);
+    return NextResponse.json({ error: "AI Assistant is currently offline." }, { status: 500 });
   }
 }
