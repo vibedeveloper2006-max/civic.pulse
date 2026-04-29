@@ -172,10 +172,11 @@ export default function PollingPage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Enter your address or ZIP code..."
+              aria-label="Search polling places by address or ZIP code"
               className="w-full pl-9 pr-4 py-2.5 border border-[#c4c6d0] rounded text-sm bg-white focus:outline-none focus:border-[#002855] transition-colors"
             />
           </div>
-          <Button type="submit" variant="primary" size="sm">Search</Button>
+          <Button type="submit" variant="primary" size="sm" aria-busy={loading}>Search</Button>
         </form>
         <div className="flex gap-2">
           <Button
@@ -193,6 +194,7 @@ export default function PollingPage() {
             className="gap-1"
             onClick={() => fetchPlaces()}
             title="Refresh wait times"
+            aria-busy={loading}
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </Button>

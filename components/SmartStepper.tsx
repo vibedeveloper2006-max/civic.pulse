@@ -98,6 +98,7 @@ export function SmartStepper() {
                 <Link
                   href={STEP_HREFS[i]}
                   className="flex-shrink-0 text-xs font-semibold text-[#002855] hover:underline"
+                  aria-label={`Go to ${step.label} step`}
                 >
                   Go →
                 </Link>
