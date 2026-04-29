@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 import { AssistantRequest, AssistantResponse, Intent } from "@/lib/types";
+import { detectIntent, parseResponse } from "@/lib/assistant-utils";
+import { logInteraction } from "@/lib/google-logger";
 
 // genAI initialized dynamically inside handler
 const SYSTEM_PROMPT = `You are CivicPulse, an intelligent, friendly, and non-partisan election assistant for Indian voters.
@@ -24,30 +26,7 @@ REPLY: <your response>
 INTENT: <one of the intent types>
 SUGGESTIONS: <JSON array of 2-3 short follow-up questions>`;
 
-function detectIntent(message: string): Intent {
-  const lower = message.toLowerCase();
-  if (lower.includes("eligib") || lower.includes("qualify") || lower.includes("can i vote")) return "CHECK_ELIGIBILITY";
-  if (lower.includes("register") || lower.includes("registration")) return "VERIFY_REGISTRATION";
-  if (lower.includes("polling") || lower.includes("poll") || lower.includes("where") || lower.includes("location")) return "FIND_POLLING_PLACE";
-  if (lower.includes("deadline") || lower.includes("when") || lower.includes("date") || lower.includes("time")) return "DEADLINE_QUERY";
-  return "GENERAL";
-}
-
-function parseResponse(raw: string): { reply: string; intent: Intent; suggestions: string[] } {
-  const replyMatch = raw.match(/REPLY:\s*([\s\S]*?)(?=INTENT:|$)/);
-  const intentMatch = raw.match(/INTENT:\s*(\w+)/);
-  const suggestionsMatch = raw.match(/SUGGESTIONS:\s*(\[[\s\S]*?\])/);
-
-  const reply = replyMatch?.[1]?.trim() ?? raw;
-  const intent = (intentMatch?.[1] as Intent) ?? "GENERAL";
-  let suggestions: string[] = [];
-  try {
-    suggestions = JSON.parse(suggestionsMatch?.[1] ?? "[]");
-  } catch {
-    suggestions = ["Am I eligible to vote?", "Where is my polling place?", "What are the registration deadlines?"];
-  }
-  return { reply, intent, suggestions };
-}
+// Assistant Logic Utils extracted to lib/assistant-utils.ts
 
 export async function POST(req: NextRequest) {
   let message = "";
@@ -73,7 +52,18 @@ export async function POST(req: NextRequest) {
     let model;
 
     try {
-      model = genAI.getGenerativeModel({ model: modelName }, { apiVersion: "v1" });
+      model = genAI.getGenerativeModel(
+        { 
+          model: modelName,
+          safetySettings: [
+            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+          ]
+        }, 
+        { apiVersion: "v1" }
+      );
       // Quick check if model exists? (SDK doesn't verify on init, only on use)
     } catch (e) {
       console.warn("Primary model initialization failed, switching to discovery.");
@@ -149,6 +139,14 @@ export async function POST(req: NextRequest) {
     }
 
     const parsed = parseResponse(raw);
+    
+    // Background log to Google Cloud Analytics (BigQuery)
+    logInteraction({
+      message,
+      intent: parsed.intent,
+      timestamp: new Date().toISOString()
+    });
+
     return NextResponse.json<AssistantResponse>(parsed);
   } catch (error: any) {
     console.error("Assistant API Final Error:", error?.message || error);
