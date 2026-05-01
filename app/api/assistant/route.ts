@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
-import { AssistantRequest, AssistantResponse, Intent } from "@/lib/types";
-import { detectIntent, parseResponse } from "@/lib/assistant-utils";
+import { AssistantRequest, AssistantResponse } from "@/lib/types";
+import { parseResponse } from "@/lib/assistant-utils";
 import { logInteraction } from "@/lib/google-logger";
 
 /**
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
       message,
       intent: parsed.intent,
       timestamp: new Date().toISOString()
-    }).catch(e => console.error("Logging error:", e));
+    }).catch((error) => console.error("Logging error:", error));
 
     return NextResponse.json<AssistantResponse>(parsed);
   } catch (error) {

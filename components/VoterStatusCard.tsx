@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import {
-  ShieldCheck, UserCheck, BadgeCheck, MapPin, Vote,
+  ShieldCheck, UserCheck, BadgeCheck, Vote,
   ArrowRight, AlertCircle,
 } from "lucide-react";
 

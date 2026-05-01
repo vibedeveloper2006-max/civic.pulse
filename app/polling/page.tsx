@@ -6,7 +6,6 @@ import { PollingPlace } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { useUserStore } from "@/store/useUserStore";
 import {
   MapPin, Clock, Navigation, RefreshCw, Search,
   CheckCircle2, XCircle, Filter,
@@ -93,7 +92,6 @@ export default function PollingPage() {
     places, 
     setPlaces, 
     loading, 
-    lastSearchLocation, 
     fetchPlaces 
   } = usePolling();
 

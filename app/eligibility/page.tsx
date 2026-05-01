@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { EligibilityAnswers, EligibilityResponse } from "@/lib/types";
 import {
-  ShieldCheck, CheckCircle2, XCircle, ChevronRight,
+  CheckCircle2, XCircle, ChevronRight,
   AlertTriangle, ExternalLink,
 } from "lucide-react";
 

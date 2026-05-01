@@ -15,12 +15,14 @@ const CATEGORY_CONFIG = {
 
 function TimelineCard({ event }: { event: TimelineEvent & { countdown?: number | null } }) {
   const cfg = CATEGORY_CONFIG[event.category];
-  const [tick, setTick] = useState("");
+  const [tick, setTick] = useState(() => (
+    event.isPast || !event.date ? "" : getCountdown(event.date)
+  ));
 
   useEffect(() => {
     if (event.isPast || !event.date) return;
+
     const interval = setInterval(() => setTick(getCountdown(event.date)), 1000);
-    setTick(getCountdown(event.date));
     return () => clearInterval(interval);
   }, [event.date, event.isPast]);
 
