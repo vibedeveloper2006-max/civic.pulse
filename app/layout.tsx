@@ -1,10 +1,14 @@
 /* eslint-disable @next/next/no-page-custom-font */
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Public_Sans } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/layouts/AppShell";
 
 const inter = Inter({ subsets: ["latin"] });
+const publicSans = Public_Sans({
+  subsets: ["latin"],
+  variable: "--font-public-sans",
+});
 
 export const metadata: Metadata = {
   title: "CivicPulse – Intelligent Election Assistant",
@@ -20,15 +24,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="en" className={publicSans.variable}>
       <body className={`${inter.className} antialiased`}>
         <AppShell>{children}</AppShell>
       </body>

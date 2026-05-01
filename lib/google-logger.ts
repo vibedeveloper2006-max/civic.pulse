@@ -20,7 +20,6 @@ export async function logInteraction(data: {
       rows: [{ json: data }]
     };
     console.debug("[BigQuery Analytics] Prepared payload:", simulatedLog);
-    
     // Placeholder for actual GCP Logging or BigQuery fetch
     // await fetch('https://bigquery.googleapis.com/...', { ... });
   } catch (err) {

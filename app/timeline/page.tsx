@@ -21,6 +21,7 @@ function TimelineCard({ event }: { event: TimelineEvent & { countdown?: number |
 
   useEffect(() => {
     if (event.isPast || !event.date) return;
+
     const interval = setInterval(() => setTick(getCountdown(event.date)), 1000);
     return () => clearInterval(interval);
   }, [event.date, event.isPast]);
