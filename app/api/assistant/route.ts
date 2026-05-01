@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
-import { AssistantRequest, AssistantResponse, Intent } from "@/lib/types";
+import { AssistantRequest, AssistantResponse } from "@/lib/types";
 import { detectIntent, parseResponse } from "@/lib/assistant-utils";
 import { logInteraction } from "@/lib/google-logger";
 
@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
   try {
     const body: AssistantRequest = await req.json();
     const { message, history, userState } = body;
+    const detectedIntent = detectIntent(message);
 
     if (!message?.trim()) {
       return NextResponse.json({ error: "Message is required" }, { status: 400 });
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const contextualSystem = `${SYSTEM_PROMPT}\n\nCurrent user voter state: ${userState}`;
+    const contextualSystem = `${SYSTEM_PROMPT}\n\nCurrent user voter state: ${userState}\nDetected intent: ${detectedIntent}`;
     
     // Map history to Google-compatible parts
     const chatHistory = history.map((h) => ({
@@ -142,7 +143,7 @@ export async function POST(req: NextRequest) {
     // Background analytics logging
     logInteraction({
       message,
-      intent: parsed.intent,
+      intent: parsed.intent ?? detectedIntent,
       timestamp: new Date().toISOString()
     }).catch(e => console.error("Logging error:", e));
 

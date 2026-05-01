@@ -13,7 +13,7 @@ const STEP_ICONS = [ShieldCheck, UserCheck, BadgeCheck, MapPin, Vote];
 const STEP_HREFS = ["/eligibility", "/guide#resources", "/guide#resources", "/polling", "/guide#tips"];
 
 export function SmartStepper() {
-  const { completedSteps, currentStep, voterState } = useUserStore();
+  const { completedSteps, currentStep } = useUserStore();
 
   const isUnlocked = (stepId: number): boolean => {
     if (stepId === 1) return true;

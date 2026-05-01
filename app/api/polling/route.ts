@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { MOCK_POLLING_PLACES } from "@/lib/constants";
 import { PollingPlace } from "@/lib/types";
 
+interface NominatimPlace {
+  place_id: number;
+  name?: string;
+  display_name?: string;
+  lat: string;
+  lon: string;
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const location = searchParams.get("location") ?? "";
@@ -14,13 +22,13 @@ export async function GET(req: NextRequest) {
       const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=5`, {
         headers: { "User-Agent": "CivicPulse Election Assistant" }
       });
-      const data = await res.json();
+      const data: NominatimPlace[] = await res.json();
 
       if (data && data.length > 0) {
-        places = data.map((r: any, i: number) => ({
+        places = data.map((r) => ({
           id: String(r.place_id),
           name: r.name || "Local Polling Center",
-          address: r.display_name?.split(',').slice(0, 2).join(',') || location,
+          address: r.display_name?.split(",").slice(0, 2).join(",") || location,
           city: location,
           state: "",
           zip: "",

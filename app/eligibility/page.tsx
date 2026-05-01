@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { EligibilityAnswers, EligibilityResponse } from "@/lib/types";
 import {
-  ShieldCheck, CheckCircle2, XCircle, ChevronRight,
+  CheckCircle2, XCircle, ChevronRight,
   AlertTriangle, ExternalLink,
 } from "lucide-react";
 
@@ -36,6 +36,13 @@ const QUESTIONS = [
     step: 4,
   },
 ];
+
+const EMPTY_ELIGIBILITY_ANSWERS: EligibilityAnswers = {
+  ageVerified: null,
+  isCitizen: null,
+  isResident: null,
+  isRegistered: null,
+};
 
 export default function EligibilityPage() {
   const { eligibilityAnswers, setEligibilityAnswer, transitionTo, completeStep, setCurrentStep, voterState } =
@@ -83,7 +90,9 @@ export default function EligibilityPage() {
   function resetQuestionnaire() {
     setResult(null);
     setCurrentQ(0);
-    QUESTIONS.forEach((q) => setEligibilityAnswer(q.key, null as unknown as boolean));
+    (Object.entries(EMPTY_ELIGIBILITY_ANSWERS) as Array<[keyof EligibilityAnswers, null]>).forEach(([key, value]) => {
+      setEligibilityAnswer(key, value);
+    });
   }
 
   if (alreadyDone && result === null) {

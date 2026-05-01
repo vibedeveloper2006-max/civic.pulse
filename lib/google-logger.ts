@@ -19,6 +19,7 @@ export async function logInteraction(data: {
       tableId: "user_interactions",
       rows: [{ json: data }]
     };
+    console.debug("[BigQuery Analytics] Prepared payload:", simulatedLog);
     
     // Placeholder for actual GCP Logging or BigQuery fetch
     // await fetch('https://bigquery.googleapis.com/...', { ... });

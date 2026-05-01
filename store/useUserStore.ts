@@ -19,7 +19,7 @@ interface UserStore {
 
   // Actions
   setVoterState: (state: VoterState) => void;
-  setEligibilityAnswer: (key: keyof EligibilityAnswers, value: boolean) => void;
+  setEligibilityAnswer: (key: keyof EligibilityAnswers, value: boolean | null) => void;
   completeStep: (step: number) => void;
   setCurrentStep: (step: number) => void;
   setLocation: (location: string) => void;

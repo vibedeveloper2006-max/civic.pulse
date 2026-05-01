@@ -15,6 +15,14 @@ const QUICK_ACTIONS = [
   "How do I check my registration?",
 ];
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return "I'm having trouble connecting right now. Please try again in a moment.";
+}
+
 function ChatMessage({ msg }: { msg: Message }) {
   const isUser = msg.role === "user";
   return (
@@ -110,11 +118,11 @@ export default function AssistantPage() {
       };
       addMessage(assistantMsg);
       setSuggestions(data.suggestions ?? []);
-    } catch (err: any) {
+    } catch (error) {
       addMessage({
         id: `err_${crypto.randomUUID()}`,
         role: "assistant",
-        content: err.message || "I'm having trouble connecting right now. Please try again in a moment.",
+        content: getErrorMessage(error),
         timestamp: new Date(),
       });
     } finally {
